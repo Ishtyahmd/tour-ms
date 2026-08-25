@@ -1,82 +1,172 @@
-<?php require_once "form2_process.php"; ?>
-<!DOCTYPE html>
-<html lang="en">
+<?php
 
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Registration</title>
-  <!-- ?v=2 forces the browser to reload the updated stylesheet instead of a cached copy -->
-  <link rel="stylesheet" href="form2.css?v=2">
-</head>
+// 1. GLOBAL SECURITY HEADERS & SESSION SETUP
+ini_set('session.cookie_httponly', 1);
+ini_set('session.use_only_cookies', 1);
+ini_set('session.cookie_samesite', 'Lax');
 
-<body>
-  <!-- novalidate turns off the browser's own checks so the PHP validation runs -->
-  <form class="card" method="post" action="<?= htmlspecialchars($_SERVER["PHP_SELF"]); ?>" novalidate>
-    <header class="card-header">
-      <h1>Registration</h1>
-      <p>Please complete all fields below.</p>
-    </header>
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-    <div class="field">
-      <label for="name">Full Name</label>
-      <input type="text" id="name" name="name" placeholder="Jane Doe" value="<?= $name ?>">
-      <?php if ($nameErr): ?><span class="error"><?= $nameErr ?></span><?php endif; ?>
-    </div>
+// 2. INCLUDE GLOBAL DEPENDENCIES
+require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/config/auth.php';
 
-    <div class="field">
-      <label for="postal">Postal Code</label>
-      <input type="text" id="postal" name="postal" inputmode="numeric" placeholder="10001" value="<?= $postal ?>">
-      <?php if ($postalErr): ?><span class="error"><?= $postalErr ?></span><?php endif; ?>
-    </div>
+// 3. PARSE ACTION PARAMETER
+// Reads action from $_GET or defaults to 'home'
+$action = isset($_GET['action']) ? strtolower(trim($_GET['action'])) : 'home';
 
-    <div class="field">
-      <label for="dob">Date of Birth</label>
-      <input type="date" id="dob" name="dob" value="<?= $dob ?>">
-      <?php if ($dobErr): ?><span class="error"><?= $dobErr ?></span><?php endif; ?>
-    </div>
+// Basic sanitization of action string
+$action = preg_replace('/[^a-z0-9_]/', '', $action);
 
-    <div class="field">
-      <label for="email">Email Address</label>
-      <input type="email" id="email" name="email" placeholder="jane@example.com" value="<?= $email ?>">
-      <?php if ($emailErr): ?><span class="error"><?= $emailErr ?></span><?php endif; ?>
-    </div>
+// 4. CENTRAL ROUTING SWITCH STATEMENT
+switch ($action) {
 
-    <div class="field">
-      <label for="password">Password</label>
-      <input type="password" id="password" name="password" placeholder="At least 8 characters">
-      <?php if ($passwordErr): ?><span class="error"><?= $passwordErr ?></span><?php endif; ?>
-    </div>
+    // PUBLIC & AUTHENTICATION ROUTES
+    case 'home':
+        require_once __DIR__ . '/controllers/home_controller.php';
+        render_home_page();
+        break;
 
-    <div class="field">
-      <label for="country">Country</label>
-      <select id="country" name="country">
-        <option value="" disabled <?= ($country === "") ? "selected" : "" ?>>Select a country...</option>
-        <?php foreach ($countries as $c): ?>
-          <option value="<?= $c ?>" <?= ($country === $c) ? "selected" : "" ?>><?= $c ?></option>
-        <?php endforeach; ?>
-      </select>
-      <?php if ($countryErr): ?><span class="error"><?= $countryErr ?></span><?php endif; ?>
-    </div>
+    case 'login':
+        require_once __DIR__ . '/controllers/auth_controller.php';
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            process_login();
+        } else {
+            render_login_form();
+        }
+        break;
 
-    <div class="buttons">
-      <button type="submit" class="btn-primary">Submit</button>
-      <button type="reset" class="btn-secondary">Reset</button>
-    </div>
-  </form>
+    case 'register':
+        require_once __DIR__ . '/controllers/auth_controller.php';
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            process_registration();
+        } else {
+            render_registration_form();
+        }
+        break;
 
-  <?php if ($isValid): ?>
-    <section class="card summary">
-      <h2>Registration received</h2>
-      <table class="result-table">
-        <tr><td>Full Name</td><td><?= $name ?></td></tr>
-        <tr><td>Postal Code</td><td><?= $postal ?></td></tr>
-        <tr><td>Date of Birth</td><td><?= $dob ?></td></tr>
-        <tr><td>Email Address</td><td><?= $email ?></td></tr>
-        <tr><td>Country</td><td><?= $country ?></td></tr>
-      </table>
-    </section>
-  <?php endif; ?>
-</body>
+    case 'logout':
+        require_once __DIR__ . '/controllers/auth_controller.php';
+        process_logout();
+        break;
 
-</html>
+    // USER (CUSTOMER) ROUTES
+
+    case 'user_dashboard':
+        check_authorization(array('user'));
+        require_once __DIR__ . '/controllers/user_controller.php';
+        render_user_dashboard();
+        break;
+
+    case 'submit_special_request':
+        check_authorization(array('user'));
+        require_once __DIR__ . '/controllers/user_controller.php';
+        handle_special_request_submission();
+        break;
+
+    case 'rate_service':
+        check_authorization(array('user'));
+        require_once __DIR__ . '/controllers/user_controller.php';
+        handle_rating_submission();
+        break;
+
+    // ADMIN ROUTES
+
+    case 'admin_dashboard':
+        check_authorization(array('admin'));
+        require_once __DIR__ . '/controllers/admin_controller.php';
+        render_admin_dashboard();
+        break;
+
+    case 'admin_assign_guide':
+        check_authorization(array('admin'));
+        require_once __DIR__ . '/controllers/admin_controller.php';
+        handle_guide_assignment();
+        break;
+
+    case 'admin_manage_discounts':
+        check_authorization(array('admin'));
+        require_once __DIR__ . '/controllers/admin_controller.php';
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            handle_create_discount();
+        } else {
+            render_discounts_page();
+        }
+        break;
+
+    case 'admin_broadcast':
+        check_authorization(array('admin'));
+        require_once __DIR__ . '/controllers/admin_controller.php';
+        handle_broadcast_notification();
+        break;
+
+    // TOUR GUIDE ROUTES
+    case 'guide_dashboard':
+        check_authorization(array('guide'));
+        require_once __DIR__ . '/controllers/guide_controller.php';
+        render_guide_dashboard();
+        break;
+
+    case 'guide_update_status':
+        check_authorization(array('guide'));
+        require_once __DIR__ . '/controllers/guide_controller.php';
+        handle_status_update();
+        break;
+
+    // VENDOR (HOTEL / TRANSPORTATION) ROUTES
+
+    case 'vendor_dashboard':
+        check_authorization(array('vendor'));
+        require_once __DIR__ . '/controllers/vendor_controller.php';
+        render_vendor_dashboard();
+        break;
+
+    case 'vendor_manage_listings':
+        check_authorization(array('vendor'));
+        require_once __DIR__ . '/controllers/vendor_controller.php';
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            handle_add_listing();
+        } else {
+            render_listings_page();
+        }
+        break;
+
+    case 'vendor_update_request_status':
+        check_authorization(array('vendor'));
+        require_once __DIR__ . '/controllers/vendor_controller.php';
+        handle_update_special_request();
+        break;
+
+    // PROCEDURAL AJAX ENDPOINTS
+
+    case 'ajax_assign_guide':
+        check_authorization(array('admin'));
+        require_once __DIR__ . '/controllers/ajax_assign_guide.php';
+        break;
+
+    case 'ajax_submit_rating':
+        check_authorization(array('user'));
+        require_once __DIR__ . '/controllers/ajax_submit_rating.php';
+        break;
+
+    case 'ajax_send_notification':
+        check_authorization(array('admin'));
+        require_once __DIR__ . '/controllers/ajax_send_notification.php';
+        break;
+
+    case 'ajax_fetch_notifications':
+        check_authorization(array('admin', 'user', 'guide', 'vendor'));
+        require_once __DIR__ . '/controllers/ajax_fetch_notifications.php';
+        break;
+
+
+    // 404 NOT FOUND FALLBACK
+
+    default:
+        http_response_code(404);
+        require_once __DIR__ . '/views/errors/404.php';
+        render_404_page();
+        break;
+}
