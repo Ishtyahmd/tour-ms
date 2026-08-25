@@ -1,77 +1,82 @@
+<?php require_once "form2_process.php"; ?>
+<!DOCTYPE html>
+<html lang="en">
 
-<?php
-// ================================================================
-// FRONT CONTROLLER (router)
-// Handles routing, AJAX search endpoint, logout, role checks.
-// ================================================================
-session_start();
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registration</title>
+  <!-- ?v=2 forces the browser to reload the updated stylesheet instead of a cached copy -->
+  <link rel="stylesheet" href="form2.css?v=2">
+</head>
 
-//require 'config.php';
-//require 'models.php';
-//require 'controllers.php';
+<body>
+  <!-- novalidate turns off the browser's own checks so the PHP validation runs -->
+  <form class="card" method="post" action="<?= htmlspecialchars($_SERVER["PHP_SELF"]); ?>" novalidate>
+    <header class="card-header">
+      <h1>Registration</h1>
+      <p>Please complete all fields below.</p>
+    </header>
 
-$page = $_GET['page'] ?? 'login';
+    <div class="field">
+      <label for="name">Full Name</label>
+      <input type="text" id="name" name="name" placeholder="Jane Doe" value="<?= $name ?>">
+      <?php if ($nameErr): ?><span class="error"><?= $nameErr ?></span><?php endif; ?>
+    </div>
 
-/* -- Logout --*/
-if ($page === 'logout') {
-    $_SESSION = [];
-    session_destroy();
-    setcookie('remember_user', '', time() - 3600, '/');
-    header('Location: index.php?page=login');
-    exit;
-}
+    <div class="field">
+      <label for="postal">Postal Code</label>
+      <input type="text" id="postal" name="postal" inputmode="numeric" placeholder="10001" value="<?= $postal ?>">
+      <?php if ($postalErr): ?><span class="error"><?= $postalErr ?></span><?php endif; ?>
+    </div>
 
+    <div class="field">
+      <label for="dob">Date of Birth</label>
+      <input type="date" id="dob" name="dob" value="<?= $dob ?>">
+      <?php if ($dobErr): ?><span class="error"><?= $dobErr ?></span><?php endif; ?>
+    </div>
 
-if ($page === 'ajax') {
-    header('Content-Type: application/json');
-    if (!isset($_SESSION['user'])) {
-        http_response_code(403);
-        echo json_encode(['error' => 'Unauthorized']);
-        exit;
-    }
-    $type = $_GET['type'] ?? '';
-    $q    = trim($_GET['q'] ?? '');
+    <div class="field">
+      <label for="email">Email Address</label>
+      <input type="email" id="email" name="email" placeholder="jane@example.com" value="<?= $email ?>">
+      <?php if ($emailErr): ?><span class="error"><?= $emailErr ?></span><?php endif; ?>
+    </div>
 
-    if ($type === 'librarian' && $_SESSION['user']['role'] === 'admin') {
-        echo json_encode($q === '' ? getLibrarians($conn) : searchLibrarians($conn, $q));
-    } elseif ($type === 'book' && $_SESSION['user']['role'] === 'librarian') {
-        echo json_encode($q === '' ? getBooks($conn) : searchBooks($conn, $q));
-    } else {
-        http_response_code(403);
-        echo json_encode(['error' => 'Forbidden']);
-    }
-    exit;
-}
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" placeholder="At least 8 characters">
+      <?php if ($passwordErr): ?><span class="error"><?= $passwordErr ?></span><?php endif; ?>
+    </div>
 
-/* -- Auth gates -- */
-$publicPages = ['login', 'register'];
+    <div class="field">
+      <label for="country">Country</label>
+      <select id="country" name="country">
+        <option value="" disabled <?= ($country === "") ? "selected" : "" ?>>Select a country...</option>
+        <?php foreach ($countries as $c): ?>
+          <option value="<?= $c ?>" <?= ($country === $c) ? "selected" : "" ?>><?= $c ?></option>
+        <?php endforeach; ?>
+      </select>
+      <?php if ($countryErr): ?><span class="error"><?= $countryErr ?></span><?php endif; ?>
+    </div>
 
-// Already logged in -> skip login/register
-if (in_array($page, $publicPages) && isset($_SESSION['user'])) {
-    header('Location: index.php?page=' . $_SESSION['user']['role']);
-    exit;
-}
+    <div class="buttons">
+      <button type="submit" class="btn-primary">Submit</button>
+      <button type="reset" class="btn-secondary">Reset</button>
+    </div>
+  </form>
 
-// Protected pages require login
-if (!in_array($page, $publicPages) && !isset($_SESSION['user'])) {
-    header('Location: index.php?page=login');
-    exit;
-}
+  <?php if ($isValid): ?>
+    <section class="card summary">
+      <h2>Registration received</h2>
+      <table class="result-table">
+        <tr><td>Full Name</td><td><?= $name ?></td></tr>
+        <tr><td>Postal Code</td><td><?= $postal ?></td></tr>
+        <tr><td>Date of Birth</td><td><?= $dob ?></td></tr>
+        <tr><td>Email Address</td><td><?= $email ?></td></tr>
+        <tr><td>Country</td><td><?= $country ?></td></tr>
+      </table>
+    </section>
+  <?php endif; ?>
+</body>
 
-// Role gate
-if ($page === 'admin'     && $_SESSION['user']['role'] !== 'admin')      { header('Location: index.php?page=login'); exit; }
-if ($page === 'librarian' && $_SESSION['user']['role'] !== 'librarian')  { header('Location: index.php?page=login'); exit; }
-
-/* -- Dispatch -- */
-switch ($page) {
-    case 'login':     loginCtrl($conn);     break;
-    case 'register':  registerCtrl($conn);  break;
-    case 'admin':     adminCtrl($conn);     break;
-    case 'librarian': librarianCtrl($conn); break;
-    default:
-        header('Location: index.php?page=login');
-        exit;
-}
-
-mysqli_close($conn);
-?>
+</html>
