@@ -1,84 +1,64 @@
 <?php
-
-/**
- * Global Procedural Authentication & Authorization Helper
- * Paradigm: Pure Procedural PHP (Zero OOP)
- */
-
-// 1. ENSURE SECURE SESSION INITIALIZATION
+// Ensure session is started safely across all requests
 if (session_status() === PHP_SESSION_NONE) {
-    // Set secure cookie settings before starting session
-    ini_set('session.cookie_httponly', 1);
-    ini_set('session.use_only_cookies', 1);
-    ini_set('session.cookie_samesite', 'Lax');
     session_start();
 }
 
-// Ensure database functions are available
 require_once __DIR__ . '/database.php';
 
 /**
- * Checks if the current request user is logged in.
- *
- * @return bool True if authenticated, false otherwise.
+ * Authenticates a user by email and password using mysqli procedural functions.
+ */
+function login_user($email, $password)
+{
+    $conn = db_connect();
+
+    $email = mysqli_real_escape_string($conn, trim($email));
+    $sql = "SELECT id, name, email, password, role FROM users WHERE email = '$email' LIMIT 1";
+    $result = mysqli_query($conn, $sql);
+
+    if ($result && mysqli_num_rows($result) === 1) {
+        $user = mysqli_fetch_assoc($result);
+
+        // Verify hash password (or plain text comparison if hashing isn't used yet)
+        if (password_verify($password, $user['password'])) {
+            // Prevent session fixation attacks
+            session_regenerate_id(true);
+
+            $_SESSION['user_id']   = $user['id'];
+            $_SESSION['user_name'] = $user['name'];
+            $_SESSION['user_role'] = $user['role'];
+            $_SESSION['logged_in'] = true;
+
+            db_close($conn);
+            return true;
+        }
+    }
+
+    db_close($conn);
+    return false;
+}
+
+/**
+ * Checks if a user is currently logged in.
  */
 function is_logged_in()
 {
-    return isset($_SESSION['logged_in'])
-        && $_SESSION['logged_in'] === true
-        && !empty($_SESSION['user_id']);
+    return isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true && !empty($_SESSION['user_id']);
 }
 
 /**
- * Returns the currently authenticated user's ID or 0 if guest.
- *
- * @return int
- */
-function get_logged_in_user_id()
-{
-    return is_logged_in() ? (int)$_SESSION['user_id'] : 0;
-}
-
-/**
- * Returns the currently authenticated user's role or empty string if guest.
- *
- * @return string
- */
-function get_logged_in_user_role()
-{
-    return is_logged_in() ? $_SESSION['user_role'] : '';
-}
-
-/**
- * Detects if the current request was initiated via AJAX / XMLHttpRequest.
- *
- * @return bool
- */
-function is_ajax_request()
-{
-    return isset($_SERVER['HTTP_X_REQUESTED_WITH'])
-        && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
-}
-
-/**
- * Procedural authorization guard.
- * Verifies authentication and checks if user role exists within allowed roles list.
- * Terminate or redirects immediately if unauthorized.
- *
- * @param array $allowed_roles List of role strings allowed to access the route.
- * @return void
+ * Procedural authorization guard. Ensures user is logged in and possesses an allowed role.
+ * Redirects or terminates execution with a 403 status if unauthorized.
  */
 function check_authorization($allowed_roles = array())
 {
-    // Step 1: Check if user is logged in
+    // 1. Check if user is logged in
     if (!is_logged_in()) {
         if (is_ajax_request()) {
             header('Content-Type: application/json');
             http_response_code(401);
-            echo json_encode(array(
-                'status'  => 'error',
-                'message' => 'Unauthorized access. Please log in.'
-            ));
+            echo json_encode(array('status' => 'error', 'message' => 'Unauthorized. Please log in.'));
             exit();
         } else {
             header("Location: index.php?action=login&error=login_required");
@@ -86,21 +66,18 @@ function check_authorization($allowed_roles = array())
         }
     }
 
-    // Step 2: Validate user role against permission whitelist (if restrictions set)
+    // 2. Check role permissions if restrictions are specified
     if (!empty($allowed_roles)) {
-        $user_role = get_logged_in_user_role();
+        $current_role = $_SESSION['user_role'] ?? '';
 
-        if (!in_array($user_role, $allowed_roles)) {
+        if (!in_array($current_role, $allowed_roles)) {
             if (is_ajax_request()) {
                 header('Content-Type: application/json');
                 http_response_code(403);
-                echo json_encode(array(
-                    'status'  => 'error',
-                    'message' => 'Forbidden access. You do not have permission to perform this action.'
-                ));
+                echo json_encode(array('status' => 'error', 'message' => 'Forbidden. Access denied.'));
                 exit();
             } else {
-                header("Location: index.php?action=home&error=access_denied");
+                header("Location: index.php?action=dashboard&error=access_denied");
                 exit();
             }
         }
@@ -108,16 +85,21 @@ function check_authorization($allowed_roles = array())
 }
 
 /**
- * Destroys all user session data, invalidates session cookie, and logs user out.
- *
- * @return void
+ * Helper to detect AJAX requests procedurally.
+ */
+function is_ajax_request()
+{
+    return isset($_SERVER['HTTP_X_REQUESTED_WITH']) &&
+        strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+}
+
+/**
+ * Logs out the current user and clears session data.
  */
 function logout_user()
 {
-    // Unset all session variables
     $_SESSION = array();
 
-    // Clear session ID cookie if present
     if (ini_get("session.use_cookies")) {
         $params = session_get_cookie_params();
         setcookie(
@@ -131,6 +113,5 @@ function logout_user()
         );
     }
 
-    // Destroy session storage completely
     session_destroy();
 }
