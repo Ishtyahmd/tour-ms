@@ -1,0 +1,187 @@
+.admin-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 30px;
+    margin: 40px auto;
+    width: 100%;
+}
+
+.admin-stack .card {
+    width: 100%;
+    max-width: 700px;
+    margin-bottom: 20px;
+}
+
+.card.stat-card {
+    text-align: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 280px;
+}
+
+.card.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.stat-value {
+    font-size: 38px;
+    font-weight: 800;
+    margin: 10px 0;
+    color: var(--text-main);
+}
+
+.stat-value.warning {
+    color: #d97706; /* Amber for pending requests */
+}
+
+.user-role-breakdown {
+    font-size: 13px;
+    margin-bottom: 20px;
+    color: var(--text-muted);
+}
+
+.engagement-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+    margin-bottom: 25px;
+    width: 100%;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-sub-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--text-main);
+}
+
+.stat-label {
+    font-size: 10px;
+    font-weight: bold;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    margin-top: 5px;
+}
+
+.btn-full {
+    display: block;
+    width: 100%;
+    text-align: center;
+    padding: 12px 15px;
+}
+
+.muted {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+}
+
+/* Moderation Table Adjustments */
+.data-table th {
+    background-color: var(--paletton-5);
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: var(--text-main);
+}
+
+/* Admin Action Buttons */
+.btn-approve {
+    background-color: var(--paletton-6);
+    color: var(--paletton-1);
+    border: 1px solid var(--paletton-5);
+}
+
+.btn-approve:hover {
+    background-color: var(--paletton-5);
+    color: var(--paletton-1);
+}
+
+.btn-reject {
+    background-color: var(--paletton-4);
+    color: var(--paletton-1);
+    border: 1px solid var(--paletton-3);
+}
+
+.btn-reject:hover {
+    background-color: var(--paletton-3);
+    color: var(--paletton-6);
+}
+
+/* User Verification Toggle Style */
+.btn-verify {
+    background-color: var(--paletton-5);
+    color: var(--paletton-1);
+    border: 1px solid var(--paletton-4);
+}
+
+.btn-verify:hover {
+    background-color: var(--primary);
+    color: var(--paletton-6);
+}
+
+/* Edit Modal */
+.edit-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.edit-modal-content {
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+/* Post Thumbnails */
+.post-thumbnail {
+    width: 50px;
+    height: 35px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+.text-tiny {
+    font-size: 10px;
+}
+
+/* Photo Badge */
+.badge-photo {
+    background: #e0e7ff;
+    color: #3730a3;
+    text-decoration: none;
+    font-size: 10px;
+}
+
+/* Approve Button in Pending Requests */
+.btn-approve-green {
+    background: #dcfce7;
+    color: #166534;
+    border-color: #bbf7d0;
+}
+
+.card-margin-bottom {
+    margin-bottom: 20px;
+}
