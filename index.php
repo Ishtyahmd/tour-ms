@@ -1,172 +1,97 @@
 <?php
+session_start();
 
-// 1. GLOBAL SECURITY HEADERS & SESSION SETUP
-ini_set('session.cookie_httponly', 1);
-ini_set('session.use_only_cookies', 1);
-ini_set('session.cookie_samesite', 'Lax');
+require 'config/database.php';
+require 'config/app.php';
+require 'app/models/User.php';
+require 'app/controllers/AuthController.php';
+require 'app/controllers/HomeController.php';
+require 'app/models/AdminModel.php';
+require 'app/controllers/AdminController.php';
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+require 'app/models/Guide.php';
+require 'app/controllers/GuideController.php';
+require 'app/models/Vendor.php';
+require 'app/controllers/VendorController.php';
+require 'app/models/Tour.php';
+require 'app/controllers/TourController.php';
+require 'app/controllers/ProfileController.php';
+
+$page = $_GET['page'] ?? 'home';
+
+//Reinstate session from Remember Me cookie if not logged in
+if (!isset($_SESSION['user']) && isset($_COOKIE['remember_token'])) {
+    $token_user = getUserByRememberToken($conn, $_COOKIE['remember_token']);
+    if ($token_user) {
+        $_SESSION['user'] = [
+            'id'    => $token_user['id'],
+            'name'  => $token_user['name'],
+            'email' => $token_user['email'],
+            'role'  => $token_user['role'],
+            'is_verified' => $token_user['is_verified'],
+            'profile_picture' => $token_user['profile_picture'] ?? ''
+        ];
+        $_SESSION['user_id'] = $token_user['id'];
+        $_SESSION['name']    = $token_user['name'];
+        $_SESSION['role']    = $token_user['role'];
+    }
 }
 
-// 2. INCLUDE GLOBAL DEPENDENCIES
-require_once __DIR__ . '/config/database.php';
-require_once __DIR__ . '/config/auth.php';
+//Logout
+if ($page === 'logout') {
+    if (isset($_SESSION['user'])) {
+        updateRememberToken($conn, $_SESSION['user']['id'], NULL);
+    }
+    $_SESSION = [];
+    session_destroy();
+    setcookie('remember_token', '', time() - 3600, '/');
+    header('Location: index.php?page=login');
+    exit;
+}
 
-// 3. PARSE ACTION PARAMETER
-// Reads action from $_GET or defaults to 'home'
-$action = isset($_GET['action']) ? strtolower(trim($_GET['action'])) : 'home';
+//Auth gates
+$publicPages = ['login', 'registration', 'home'];
 
-// Basic sanitization of action string
-$action = preg_replace('/[^a-z0-9_]/', '', $action);
+//If already logged in and verified
+if (in_array($page, ['login', 'registration']) && isset($_SESSION['user']) && $_SESSION['user']['is_verified'] == 1) {
+    $redirect = $_SESSION['user']['role'];
+    header('Location: index.php?page=' . $redirect);
+    exit;
+}
 
-// 4. CENTRAL ROUTING SWITCH STATEMENT
-switch ($action) {
+//Protected pages
+if (!in_array($page, $publicPages) && !isset($_SESSION['user'])) {
+    header('Location: index.php?page=login');
+    exit;
+}
 
-    // PUBLIC & AUTHENTICATION ROUTES
-    case 'home':
-        require_once __DIR__ . '/controllers/home_controller.php';
-        render_home_page();
-        break;
+//Role gates
+if ($page === 'admin'  && $_SESSION['user']['role'] !== 'admin')  { header('Location: index.php?page=login'); exit; }
+if ($page === 'guide'  && $_SESSION['user']['role'] !== 'guide')  { header('Location: index.php?page=login'); exit; }
+if ($page === 'vendor' && $_SESSION['user']['role'] !== 'vendor') { header('Location: index.php?page=login'); exit; }
+if ($page === 'user'   && $_SESSION['user']['role'] !== 'user')   { header('Location: index.php?page=login'); exit; }
 
-    case 'login':
-        require_once __DIR__ . '/controllers/auth_controller.php';
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            process_login();
-        } else {
-            render_login_form();
-        }
-        break;
+// Verification gate
+if (isset($_SESSION['user']) && $_SESSION['user']['is_verified'] == 0 && !in_array($page, ['home', 'logout'])) {
+    header('Location: index.php?page=home');
+    exit;
+}
 
-    case 'register':
-        require_once __DIR__ . '/controllers/auth_controller.php';
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            process_registration();
-        } else {
-            render_registration_form();
-        }
-        break;
-
-    case 'logout':
-        require_once __DIR__ . '/controllers/auth_controller.php';
-        process_logout();
-        break;
-
-    // USER (CUSTOMER) ROUTES
-
-    case 'user_dashboard':
-        check_authorization(array('user'));
-        require_once __DIR__ . '/controllers/user_controller.php';
-        render_user_dashboard();
-        break;
-
-    case 'submit_special_request':
-        check_authorization(array('user'));
-        require_once __DIR__ . '/controllers/user_controller.php';
-        handle_special_request_submission();
-        break;
-
-    case 'rate_service':
-        check_authorization(array('user'));
-        require_once __DIR__ . '/controllers/user_controller.php';
-        handle_rating_submission();
-        break;
-
-    // ADMIN ROUTES
-
-    case 'admin_dashboard':
-        check_authorization(array('admin'));
-        require_once __DIR__ . '/controllers/admin_controller.php';
-        render_admin_dashboard();
-        break;
-
-    case 'admin_assign_guide':
-        check_authorization(array('admin'));
-        require_once __DIR__ . '/controllers/admin_controller.php';
-        handle_guide_assignment();
-        break;
-
-    case 'admin_manage_discounts':
-        check_authorization(array('admin'));
-        require_once __DIR__ . '/controllers/admin_controller.php';
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            handle_create_discount();
-        } else {
-            render_discounts_page();
-        }
-        break;
-
-    case 'admin_broadcast':
-        check_authorization(array('admin'));
-        require_once __DIR__ . '/controllers/admin_controller.php';
-        handle_broadcast_notification();
-        break;
-
-    // TOUR GUIDE ROUTES
-    case 'guide_dashboard':
-        check_authorization(array('guide'));
-        require_once __DIR__ . '/controllers/guide_controller.php';
-        render_guide_dashboard();
-        break;
-
-    case 'guide_update_status':
-        check_authorization(array('guide'));
-        require_once __DIR__ . '/controllers/guide_controller.php';
-        handle_status_update();
-        break;
-
-    // VENDOR (HOTEL / TRANSPORTATION) ROUTES
-
-    case 'vendor_dashboard':
-        check_authorization(array('vendor'));
-        require_once __DIR__ . '/controllers/vendor_controller.php';
-        render_vendor_dashboard();
-        break;
-
-    case 'vendor_manage_listings':
-        check_authorization(array('vendor'));
-        require_once __DIR__ . '/controllers/vendor_controller.php';
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            handle_add_listing();
-        } else {
-            render_listings_page();
-        }
-        break;
-
-    case 'vendor_update_request_status':
-        check_authorization(array('vendor'));
-        require_once __DIR__ . '/controllers/vendor_controller.php';
-        handle_update_special_request();
-        break;
-
-    // PROCEDURAL AJAX ENDPOINTS
-
-    case 'ajax_assign_guide':
-        check_authorization(array('admin'));
-        require_once __DIR__ . '/controllers/ajax_assign_guide.php';
-        break;
-
-    case 'ajax_submit_rating':
-        check_authorization(array('user'));
-        require_once __DIR__ . '/controllers/ajax_submit_rating.php';
-        break;
-
-    case 'ajax_send_notification':
-        check_authorization(array('admin'));
-        require_once __DIR__ . '/controllers/ajax_send_notification.php';
-        break;
-
-    case 'ajax_fetch_notifications':
-        check_authorization(array('admin', 'user', 'guide', 'vendor'));
-        require_once __DIR__ . '/controllers/ajax_fetch_notifications.php';
-        break;
-
-
-    // 404 NOT FOUND FALLBACK
+//Dispatch
+switch ($page) {
+    case 'home':         homeCtrl($conn);     break;
+    case 'login':        loginCtrl($conn);    break;
+    case 'registration': registerCtrl($conn); break;
+    case 'admin':         adminCtrl($conn);   break;
+    case 'guide':         guideCtrl($conn);   break;
+    case 'vendor':        vendorCtrl($conn);  break;
+    case 'user':          userCtrl($conn);    break;
+    case 'profile':       profileCtrl($conn); break;
 
     default:
-        http_response_code(404);
-        require_once __DIR__ . '/views/errors/404.php';
-        render_404_page();
-        break;
+        header('Location: index.php?page=home');
+        exit;
 }
+
+mysqli_close($conn);
+?>
