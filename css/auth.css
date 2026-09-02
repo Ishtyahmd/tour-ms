@@ -1,0 +1,102 @@
+body.auth-body {
+    background: var(--bg-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+}
+
+.auth-shell {
+    display: flex;
+    background: var(--paletton-6);
+    width: 900px;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.auth-side {
+    background: var(--primary);
+    color: var(--paletton-7);
+    width: 40%;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.logo-big {
+    font-size: 60px;
+    margin-bottom: 20px;
+}
+
+.auth-form-wrap {
+    width: 60%;
+    padding: 40px;
+}
+
+.auth-card h2 {
+    margin-top: 0;
+    font-size: 24px;
+    color: var(--text-main);
+}
+
+.muted {
+    color: var(--text-muted);
+    margin-bottom: 20px;
+}
+
+.feature-list {
+    list-style: none;
+    padding: 0;
+    margin: 20px 0;
+}
+
+.feature-list li {
+    margin-bottom: 10px;
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.auth-foot {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 14px;
+}
+
+.auth-card .field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 15px;
+}
+
+.auth-card input:not([type="checkbox"]):not([type="radio"]),
+.auth-card select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    outline: none;
+    background: var(--paletton-7);
+    color: var(--text-main);
+}
+
+.auth-card .btn {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.auth-card label {
+    display: block;
+    width: 100%;
+}
+
+.test-account {
+    margin-top: 15px;
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--text-muted);
+}
